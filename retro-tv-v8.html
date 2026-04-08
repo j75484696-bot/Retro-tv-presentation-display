@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Retro TV Presentations</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0800;font-family:'VT323',monospace}
+#app{width:100%;height:100%;position:relative}
+canvas{display:block}
+
+/* ── Intro ── */
+#intro{position:fixed;inset:0;background:#0c0700;z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity 1s ease}
+#intro.hidden{opacity:0;pointer-events:none}
+.intro-inner{text-align:center;position:relative}
+.intro-ch{color:#ff6b00;font-size:1.1rem;letter-spacing:.55rem;margin-bottom:.3rem;animation:flicker .2s infinite}
+.intro-title{font-size:7rem;color:#e8d5a3;line-height:.88;text-shadow:0 0 40px rgba(232,213,163,.5);animation:glow 1s ease-in-out infinite alternate}
+.intro-sub{color:#7a6540;font-size:.9rem;letter-spacing:.9rem;margin-top:.8rem}
+.scanlines{position:absolute;inset:-60px;background:repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,.28) 2px,rgba(0,0,0,.28) 4px);pointer-events:none;z-index:-1}
+
+/* ── Upload panel — COMPACT ── */
+#panel{position:fixed;bottom:.8rem;left:50%;transform:translateX(-50%);background:rgba(6,3,0,.96);border:1px solid rgba(160,100,30,.35);border-radius:3px;padding:.5rem .8rem .45rem;min-width:370px;max-width:86vw;z-index:50;box-shadow:0 4px 32px rgba(0,0,0,.7);user-select:none}
+#panel.dragging{box-shadow:0 8px 48px rgba(0,0,0,.9),0 0 20px rgba(255,130,0,.12);border-color:rgba(255,140,30,.55);transition:none}
+.panel-hdr{display:flex;align-items:center;gap:.28rem;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid rgba(160,100,30,.18);cursor:grab}
+.panel-hdr:active{cursor:grabbing}
+.drag-hint{color:#2a1a06;font-size:.48rem;letter-spacing:.1rem;margin-left:auto;opacity:.8}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dot.r{background:#c03030;box-shadow:0 0 4px #c03030}.dot.a{background:#c08020;box-shadow:0 0 4px #c08020}.dot.g{background:#30a030;box-shadow:0 0 4px #30a030}
+.panel-ttl{color:#6a5030;font-size:.62rem;letter-spacing:.24rem;margin-left:.3rem;flex:1}
+.channels{display:flex;gap:.35rem;margin-bottom:.35rem}
+.channel{flex:1;padding:.38rem .45rem;border:1px solid rgba(120,80,20,.15);border-radius:2px;transition:all .25s;background:rgba(255,255,255,.015)}
+.channel.active{border-color:rgba(220,130,30,.45);background:rgba(220,110,20,.06)}
+.ch-hdr{display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem}
+.ch-badge{background:rgba(40,22,4,.8);color:#604020;font-size:.7rem;padding:.04rem .26rem;border-radius:2px;border:1px solid rgba(100,60,10,.25);transition:all .2s}
+.ch-badge.lit{color:#ff9030;border-color:rgba(255,140,30,.45);box-shadow:0 0 8px rgba(255,120,0,.2)}
+.ch-name{color:#5a3e20;font-size:.55rem;letter-spacing:.1rem;flex:1}
+.slide-row{display:flex;align-items:baseline;gap:.15rem;margin-bottom:.16rem}
+.slide-num{color:#e8c060;font-size:1.05rem;line-height:1}
+.slide-sep{color:#4a3010;font-size:.68rem}
+.slide-tot{color:#7a5828;font-size:.68rem}
+.bar-wrap{height:2px;background:rgba(120,80,20,.18);border-radius:2px;overflow:hidden;margin-bottom:.28rem}
+.bar-fill{height:100%;background:linear-gradient(90deg,#c06000,#ffa030);transition:width .35s ease;box-shadow:0 0 6px rgba(255,120,0,.5)}
+.no-sig{color:#2a1a08;font-size:.6rem;letter-spacing:.16rem;height:1.5rem;display:flex;align-items:center;margin-bottom:.26rem}
+.upload-btn{display:flex;align-items:center;gap:.28rem;cursor:pointer;padding:.26rem .42rem;border:1px solid rgba(120,80,20,.22);border-radius:2px;background:rgba(255,255,255,.02);transition:all .18s;width:100%}
+.upload-btn:hover{border-color:rgba(255,140,30,.45);background:rgba(255,110,10,.07)}
+.upload-btn.loaded{border-color:rgba(50,160,50,.3)}
+.upload-btn input{display:none}
+.btn-txt{color:#8a6030;font-size:.58rem;letter-spacing:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.divider{display:flex;flex-direction:column;align-items:center;padding:0 .28rem;gap:.12rem}
+.div-line{width:1px;flex:1;background:rgba(100,60,20,.18)}
+.div-ico{color:#3a2410;font-size:.52rem}
+.timer-row{display:flex;align-items:center;gap:.35rem;padding-top:.28rem;margin-top:.1rem;border-top:1px solid rgba(120,80,20,.1)}
+.timer-lbl{color:#4a3010;font-size:.54rem;letter-spacing:.08rem;white-space:nowrap}
+.timer-inp{background:rgba(255,255,255,.03);border:1px solid rgba(120,80,20,.2);border-radius:2px;color:#e8c060;font-family:'VT323',monospace;font-size:.78rem;width:36px;text-align:center;padding:.06rem .14rem;outline:none}
+.timer-inp:focus{border-color:rgba(255,140,30,.45)}
+.timer-btn{background:rgba(255,255,255,.03);border:1px solid rgba(120,80,20,.2);border-radius:2px;color:#7a5020;font-family:'VT323',monospace;font-size:.68rem;padding:.06rem .32rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.timer-btn:hover{border-color:rgba(255,140,30,.4);color:#ffaa40;background:rgba(255,100,0,.06)}
+.timer-btn.active{color:#ff8820;border-color:rgba(255,120,0,.5);box-shadow:0 0 6px rgba(255,100,0,.2)}
+.timer-cd{color:#c07030;font-size:.72rem;font-family:'VT323',monospace;min-width:1.6rem;text-align:right}
+.instr{display:flex;align-items:center;justify-content:center;gap:.3rem;border-top:1px solid rgba(120,80,20,.12);padding-top:.3rem;margin-top:.28rem;flex-wrap:wrap}
+.instr span{color:#3a2810;font-size:.5rem;letter-spacing:.07rem}
+
+/* ── Loading ── */
+#loading{position:fixed;inset:0;background:rgba(6,3,0,.88);z-index:90;display:none;align-items:center;justify-content:center}
+#loading.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,140,0,.18);border-top-color:#ff8c00;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto .8rem}
+.load-txt{color:#b89a6a;font-size:.9rem;letter-spacing:.3rem;animation:flicker .4s infinite}
+
+/* ── Tooltip ── */
+#tooltip{position:fixed;background:rgba(4,2,0,.92);border:1px solid rgba(255,140,30,.45);color:#e0b84a;font-size:.72rem;letter-spacing:.14rem;padding:.22rem .65rem;border-radius:2px;pointer-events:none;z-index:20;white-space:nowrap;display:none;box-shadow:0 0 12px rgba(255,130,0,.15)}
+
+/* ── Overlays ── */
+#vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.72) 100%);pointer-events:none;z-index:5}
+#scanover{position:fixed;inset:0;background:repeating-linear-gradient(to bottom,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:6}
+
+/* ── Error ── */
+#webgl-err{display:none;position:fixed;inset:0;background:#0d0800;color:#ff8c00;align-items:center;justify-content:center;text-align:center;font-size:1rem;z-index:200}
+#webgl-err.show{display:flex}
+
+/* ── Keyboard shortcut HUD ── */
+#shortcut-hud{position:fixed;inset:0;z-index:300;background:rgba(4,2,0,.88);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#shortcut-hud.show{display:flex}
+.hud-box{background:rgba(8,4,0,.95);border:1px solid rgba(160,100,30,.4);border-radius:4px;padding:1.5rem 1.8rem;min-width:320px;box-shadow:0 8px 48px rgba(0,0,0,.8),0 0 30px rgba(255,130,0,.08)}
+.hud-title{color:#c8900a;font-size:1.05rem;letter-spacing:.45rem;text-align:center;margin-bottom:.85rem;border-bottom:1px solid rgba(160,100,30,.2);padding-bottom:.5rem}
+.hud-grid{display:grid;grid-template-columns:auto 1fr;gap:.28rem .7rem}
+.hud-key{color:#e8c060;font-size:.8rem;letter-spacing:.06rem;background:rgba(255,200,50,.06);border:1px solid rgba(200,150,30,.25);border-radius:2px;padding:.04rem .3rem;text-align:center;white-space:nowrap}
+.hud-desc{color:#7a5828;font-size:.76rem;letter-spacing:.06rem;display:flex;align-items:center}
+.hud-close{text-align:center;margin-top:.85rem;color:#3a2410;font-size:.58rem;letter-spacing:.18rem}
+
+/* ── Fullscreen button ── */
+#fs-btn{position:fixed;bottom:.8rem;right:.8rem;z-index:60;width:34px;height:34px;border-radius:3px;border:1px solid rgba(160,100,30,.4);background:rgba(6,3,0,.92);color:#c8900a;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s;box-shadow:0 2px 12px rgba(0,0,0,.6);font-family:'VT323',monospace}
+#fs-btn:hover{border-color:rgba(255,140,30,.65);color:#ffb030;background:rgba(20,10,0,.95);box-shadow:0 0 16px rgba(255,120,0,.2)}
+
+/* ── Fullscreen overlay ── */
+#fs-overlay{position:fixed;inset:0;z-index:200;background:#000;display:none;flex-direction:row;align-items:stretch}
+#fs-overlay.active{display:flex}
+
+/* ── Fullscreen content ── */
+#fs-content{flex:1;position:relative;background:#ffffff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#fs-img{max-width:90%;max-height:90%;object-fit:contain;display:block;image-rendering:auto;transition:max-width .2s,max-height .2s;position:relative;z-index:1}
+#fs-nosig{color:#aaaaaa;font-size:1.3rem;letter-spacing:.3rem;font-family:'VT323',monospace;animation:flicker .4s infinite;text-align:center;position:relative;z-index:1}
+#fs-content::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(to bottom,transparent,transparent 3px,rgba(0,0,0,.02) 3px,rgba(0,0,0,.02) 4px)}
+
+/* ── Fullscreen panel sidebar ── */
+#fs-panel{width:190px;flex-shrink:0;background:linear-gradient(180deg,#1a0d02,#130900);border-left:2px solid rgba(160,100,30,.35);display:flex;flex-direction:column;align-items:center;padding:1.1rem .7rem .9rem;gap:1rem;position:relative;overflow:hidden}
+#fs-panel::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,.18) 2px,rgba(0,0,0,.18) 4px)}
+.fs-panel-title{color:#604020;font-size:.7rem;letter-spacing:.32rem;font-family:'VT323',monospace;border-bottom:1px solid rgba(120,70,20,.25);width:100%;text-align:center;padding-bottom:.5rem;position:relative}
+.fs-knob-wrap{display:flex;flex-direction:column;align-items:center;gap:.35rem;width:100%;position:relative}
+.fs-ch-label{color:#ff9030;font-size:.82rem;letter-spacing:.18rem;font-family:'VT323',monospace}
+.fs-knob{width:68px;height:68px;border-radius:50%;background:radial-gradient(circle at 38% 36%,#e0cc90,#b8960c 40%,#7a6010);border:4px solid #8a7030;box-shadow:0 0 0 5px rgba(180,140,60,.18),0 4px 16px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.18);position:relative;cursor:pointer;transition:transform .2s;display:flex;align-items:center;justify-content:center}
+.fs-knob:hover{box-shadow:0 0 0 5px rgba(255,170,50,.28),0 4px 20px rgba(0,0,0,.8),inset 0 2px 4px rgba(255,255,255,.22)}
+.fs-knob:active{transform:scale(.95)}
+.fs-knob-tick{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:5px;height:13px;border-radius:2px;background:linear-gradient(to bottom,#ff5500,#ff2200);box-shadow:0 0 6px rgba(255,60,0,.7)}
+.fs-knob-ring{position:absolute;inset:-7px;border-radius:50%;border:2px solid rgba(180,140,60,.32);pointer-events:none}
+.fs-knob-label{color:#7a5828;font-size:.58rem;letter-spacing:.13rem;font-family:'VT323',monospace}
+.fs-slide-info{color:#e8c060;font-size:.88rem;font-family:'VT323',monospace;letter-spacing:.08rem;min-height:1.1rem}
+.fs-bar-wrap{width:78%;height:3px;background:rgba(120,80,20,.25);border-radius:2px;overflow:hidden}
+.fs-bar-fill{height:100%;background:linear-gradient(90deg,#c06000,#ffa030);transition:width .35s ease;box-shadow:0 0 6px rgba(255,120,0,.5)}
+.fs-divider{width:68%;height:1px;background:rgba(120,70,20,.2)}
+
+/* ── Size slider ── */
+.fs-size-wrap{width:100%;display:flex;flex-direction:column;align-items:center;gap:.28rem;position:relative}
+.fs-size-label{color:#604020;font-size:.6rem;letter-spacing:.16rem;font-family:'VT323',monospace}
+.fs-size-controls{display:flex;align-items:center;gap:.3rem;width:90%}
+.fs-size-btn{background:rgba(255,255,255,.04);border:1px solid rgba(160,100,30,.35);border-radius:2px;color:#c8900a;font-family:'VT323',monospace;font-size:1rem;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;line-height:1;padding:0}
+.fs-size-btn:hover{background:rgba(255,140,30,.12);border-color:rgba(255,140,30,.6);color:#ffb030}
+.fs-size-btn:active{transform:scale(.92)}
+.fs-slider{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg,#c06000,#ffa030);outline:none;cursor:pointer}
+.fs-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 40% 38%,#e0cc90,#b89030);border:2px solid #8a7030;box-shadow:0 0 6px rgba(255,160,40,.4),0 2px 6px rgba(0,0,0,.6);cursor:pointer}
+.fs-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 40% 38%,#e0cc90,#b89030);border:2px solid #8a7030;cursor:pointer}
+.fs-size-val{color:#e8c060;font-size:.8rem;font-family:'VT323',monospace;letter-spacing:.1rem}
+
+/* ── Power/exit button ── */
+.fs-power-btn{width:48px;height:48px;border-radius:50%;margin-top:auto;background:radial-gradient(circle at 40% 38%,#dd2200,#880000);border:3px solid #660000;box-shadow:0 0 0 4px rgba(200,30,0,.18),0 4px 14px rgba(0,0,0,.7),inset 0 1px 3px rgba(255,120,100,.3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s}
+.fs-power-btn:hover{box-shadow:0 0 0 4px rgba(255,60,0,.35),0 0 20px rgba(255,40,0,.4),0 4px 14px rgba(0,0,0,.8)}
+.fs-power-btn:active{transform:scale(.94)}
+.fs-power-icon{color:#ffaaaa;font-size:1.1rem;font-family:'VT323',monospace;line-height:1}
+.fs-exit-label{color:#440e0e;font-size:.58rem;letter-spacing:.16rem;font-family:'VT323',monospace;margin-top:.28rem;position:relative}
+
+/* ── Animations ── */
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.78}}
+@keyframes glow{from{text-shadow:0 0 20px rgba(232,213,163,.35)}to{text-shadow:0 0 50px rgba(232,213,163,.65)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fsGlitch{
+  0%  {filter:brightness(3) saturate(0) hue-rotate(90deg);transform:scaleY(1.04) translateX(-3px)}
+  8%  {filter:brightness(0.2) saturate(3) hue-rotate(180deg);transform:scaleY(0.97) translateX(6px)}
+  16% {filter:brightness(2.5) saturate(0);transform:scaleY(1.02) translateX(-2px)}
+  24% {filter:brightness(1) hue-rotate(0deg);transform:none;clip-path:inset(20% 0 30% 0)}
+  32% {filter:brightness(1.8);transform:translateX(4px);clip-path:inset(0)}
+  48% {filter:brightness(1.2);transform:none}
+  60% {filter:brightness(1);transform:none}
+  100%{filter:none;transform:none;clip-path:none}
+}
+#fs-content.glitching{animation:fsGlitch 0.38s steps(1,end) forwards}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="vignette"></div>
+  <div id="scanover"></div>
+</div>
+
+<!-- Upload panel -->
+<div id="panel">
+  <div class="panel-hdr">
+    <span class="dot r"></span><span class="dot a"></span><span class="dot g"></span>
+    <span class="panel-ttl">BROADCAST CONTROL</span>
+    <span class="drag-hint">⠿ DRAG</span>
+  </div>
+  <div class="channels">
+    <div class="channel active" id="chA">
+      <div class="ch-hdr">
+        <span class="ch-badge lit" id="badgeA">CH 1</span>
+        <span class="ch-name">PRESENTATION A</span>
+        <span style="color:#3a2610;font-size:.52rem">[ A ]</span>
+      </div>
+      <div id="infoA" style="display:none">
+        <div class="slide-row"><span class="slide-num" id="numA">1</span><span class="slide-sep">/</span><span class="slide-tot" id="totA">1</span></div>
+        <div class="bar-wrap"><div class="bar-fill" id="barA" style="width:100%"></div></div>
+      </div>
+      <div class="no-sig" id="nosigA">NO SIGNAL</div>
+      <label class="upload-btn" id="btnA">
+        <input type="file" accept=".pdf,.pptx,.ppt,.png,.jpg,.jpeg,.gif,.webp" id="fileA"/>
+        <span>▤</span><span class="btn-txt" id="btxtA">LOAD SLIDES (PDF, PPTX, or image)</span>
+      </label>
+    </div>
+    <div class="divider"><div class="div-line"></div><span class="div-ico">⊞</span><div class="div-line"></div></div>
+    <div class="channel" id="chB">
+      <div class="ch-hdr">
+        <span class="ch-badge" id="badgeB">CH 2</span>
+        <span class="ch-name">PRESENTATION B</span>
+        <span style="color:#3a2610;font-size:.52rem">[ B ]</span>
+      </div>
+      <div id="infoB" style="display:none">
+        <div class="slide-row"><span class="slide-num" id="numB">1</span><span class="slide-sep">/</span><span class="slide-tot" id="totB">1</span></div>
+        <div class="bar-wrap"><div class="bar-fill" id="barB" style="width:100%"></div></div>
+      </div>
+      <div class="no-sig" id="nosigB">NO SIGNAL</div>
+      <label class="upload-btn" id="btnLB">
+        <input type="file" accept=".pdf,.pptx,.ppt,.png,.jpg,.jpeg,.gif,.webp" id="fileB"/>
+        <span>▤</span><span class="btn-txt" id="btxtB">LOAD SLIDES (PDF, PPTX, or image)</span>
+      </label>
+    </div>
+  </div>
+  <div class="timer-row">
+    <span class="timer-lbl">AUTO-ADV</span>
+    <input class="timer-inp" id="timer-inp" type="number" min="1" max="999" placeholder="sec"/>
+    <button class="timer-btn" id="timer-btn">▶ START</button>
+    <span class="timer-cd" id="timer-cd"></span>
+  </div>
+  <div class="instr">
+    <span>KNOBS·ADVANCE</span><span>·</span><span>← → KEYS</span><span>·</span>
+    <span>SPACE·NEXT</span><span>·</span><span>F·FULLSCREEN</span><span>·</span><span>?·HELP</span>
+  </div>
+</div>
+
+<!-- Shortcut HUD -->
+<div id="shortcut-hud">
+  <div class="hud-box">
+    <div class="hud-title">KEYBOARD SHORTCUTS</div>
+    <div class="hud-grid">
+      <span class="hud-key">← / →</span><span class="hud-desc">Prev / Next slide</span>
+      <span class="hud-key">Space</span><span class="hud-desc">Next slide</span>
+      <span class="hud-key">A</span><span class="hud-desc">Switch to Channel A</span>
+      <span class="hud-key">B</span><span class="hud-desc">Switch to Channel B</span>
+      <span class="hud-key">F</span><span class="hud-desc">Toggle fullscreen</span>
+      <span class="hud-key">T</span><span class="hud-desc">Start / stop auto-advance</span>
+      <span class="hud-key">Esc</span><span class="hud-desc">Exit fullscreen / close HUD</span>
+      <span class="hud-key">?</span><span class="hud-desc">Show / hide shortcuts</span>
+    </div>
+    <div class="hud-close">PRESS ? OR ESC TO CLOSE</div>
+  </div>
+</div>
+
+<!-- Intro -->
+<div id="intro">
+  <div class="intro-inner">
+    <div class="scanlines"></div>
+    <div class="intro-ch">CH 3</div>
+    <div class="intro-title">RETRO<br>TV</div>
+    <div class="intro-sub">PRESENTATION SYSTEM</div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading"><div style="text-align:center"><div class="spinner"></div><div class="load-txt">LOADING SLIDES...</div></div></div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- WebGL error -->
+<div id="webgl-err"><div><div style="font-size:3rem;margin-bottom:1rem">📺</div><div>WebGL not available.<br><span style="opacity:.6;font-size:.8rem">Enable hardware acceleration in your browser settings.</span></div></div></div>
+
+<!-- Fullscreen button -->
+<button id="fs-btn" title="Fullscreen (F)">⛶</button>
+
+<!-- Fullscreen overlay -->
+<div id="fs-overlay">
+  <div id="fs-content">
+    <img id="fs-img" src="" alt="Slide" style="display:none"/>
+    <div id="fs-nosig">NO SIGNAL<br><span style="font-size:.7rem;color:#aaaaaa;letter-spacing:.2rem">UPLOAD A PRESENTATION TO BEGIN</span></div>
+  </div>
+  <div id="fs-panel">
+    <div class="fs-panel-title">BROADCAST CTRL</div>
+    <div class="fs-knob-wrap">
+      <div class="fs-ch-label" id="fs-badgeA">CH·A</div>
+      <div class="fs-knob" id="fs-knob-a" title="Advance Channel A">
+        <div class="fs-knob-tick" id="fs-tick-a"></div>
+        <div class="fs-knob-ring"></div>
+      </div>
+      <div class="fs-knob-label">PRESENTATION A</div>
+      <div class="fs-slide-info" id="fs-infoA">—</div>
+      <div class="fs-bar-wrap"><div class="fs-bar-fill" id="fs-barA" style="width:0%"></div></div>
+    </div>
+    <div class="fs-divider"></div>
+    <div class="fs-knob-wrap">
+      <div class="fs-ch-label" id="fs-badgeB">CH·B</div>
+      <div class="fs-knob" id="fs-knob-b" title="Advance Channel B">
+        <div class="fs-knob-tick" id="fs-tick-b"></div>
+        <div class="fs-knob-ring"></div>
+      </div>
+      <div class="fs-knob-label">PRESENTATION B</div>
+      <div class="fs-slide-info" id="fs-infoB">—</div>
+      <div class="fs-bar-wrap"><div class="fs-bar-fill" id="fs-barB" style="width:0%"></div></div>
+    </div>
+    <div class="fs-divider"></div>
+    <div class="fs-size-wrap">
+      <div class="fs-size-label">◈ SLIDE SIZE</div>
+      <div class="fs-size-controls">
+        <button class="fs-size-btn" id="fs-size-minus">−</button>
+        <input type="range" class="fs-slider" id="fs-size-slider" min="10" max="100" value="90" step="1"/>
+        <button class="fs-size-btn" id="fs-size-plus">+</button>
+      </div>
+      <div class="fs-size-val" id="fs-size-val">90%</div>
+    </div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:.28rem;position:relative">
+      <div class="fs-power-btn" id="fs-exit-btn"><span class="fs-power-icon">⏻</span></div>
+      <div class="fs-exit-label">EXIT FULLSCREEN</div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/","gsap":"https://unpkg.com/gsap@3.12.5/index.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three'
+import gsap from 'gsap'
+
+// ═══════════════════════════════════════════════════════
+// STATE  (all mutable globals declared here — no TDZ issues)
+// ═══════════════════════════════════════════════════════
+const state = {
+  presentationA:[], presentationB:[],
+  slideIndexA:0, slideIndexB:0,
+  activeChannel:'A'
+}
+
+let screenMesh, tuner1KnobGroup, tuner2KnobGroup, buttonMesh, allInteractables
+let staticInterval = null
+let currentTex     = null
+let glitchRAF      = null
+let isDragging     = false, dragX=0, dragY=0, yaw=0, pitch=0, introComplete=false
+let fsActive       = false
+let fsImgScale     = 90
+let fsTickRotA     = 0
+let fsTickRotB     = 0
+let timerInterval  = null
+let timerRunning   = false
+let timerSecsLeft  = 0
+let glowR=136, glowG=255, glowB=170
+let ambientTarget  = {r:136,g:255,b:170}
+let audioCtx       = null
+
+// ═══════════════════════════════════════════════════════
+// WEBGL CHECK
+// ═══════════════════════════════════════════════════════
+const testCv = document.createElement('canvas')
+const gl = testCv.getContext('webgl2') || testCv.getContext('webgl')
+if (!gl) {
+  document.getElementById('webgl-err').classList.add('show')
+  document.getElementById('panel').style.display = 'none'
+  throw new Error('No WebGL')
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDERER
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('c')
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'})
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type    = THREE.PCFSoftShadowMap
+renderer.toneMapping       = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = 0.85
+renderer.outputColorSpace  = THREE.SRGBColorSpace
+
+// ═══════════════════════════════════════════════════════
+// SCENE + CAMERA
+// ═══════════════════════════════════════════════════════
+const scene  = new THREE.Scene()
+scene.background = new THREE.Color(0x150c04)
+scene.fog = new THREE.Fog(0x150c04,14,28)
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth/window.innerHeight, 0.1, 100)
+camera.position.set(0,7,3)
+const lookAt = new THREE.Vector3(0,0.85,0)
+camera.lookAt(lookAt)
+
+function resize(){
+  const w=window.innerWidth, h=window.innerHeight
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix()
+}
+window.addEventListener('resize',resize)
+resize()
+
+// ═══════════════════════════════════════════════════════
+// LIGHTS
+// ═══════════════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0xfff0d8,0.32))
+const key = new THREE.DirectionalLight(0xfff5e0,1.1)
+key.position.set(-4,8,5); key.castShadow=true
+key.shadow.mapSize.set(2048,2048)
+key.shadow.camera.left=key.shadow.camera.bottom=-7
+key.shadow.camera.right=key.shadow.camera.top=7
+key.shadow.camera.far=30; key.shadow.bias=-0.001
+scene.add(key)
+const fill = new THREE.PointLight(0xff8830,0.55,14)
+fill.position.set(5,3,4); scene.add(fill)
+const screenGlow = new THREE.PointLight(0x88ffaa,0.55,3.2)
+screenGlow.position.set(-0.25,1.4,2.0); scene.add(screenGlow)
+const ceiling = new THREE.PointLight(0xfff4cc,0.72,18)
+ceiling.position.set(0,6,0); ceiling.castShadow=true; scene.add(ceiling)
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function m(color,roughness,metalness){ return new THREE.MeshStandardMaterial({color,roughness,metalness}) }
+function mk(geo,mat){ return new THREE.Mesh(geo,mat) }
+function box(w,h,d){ return new THREE.BoxGeometry(w,h,d) }
+function cyl(rt,rb,h,s){ return new THREE.CylinderGeometry(rt,rb,h,s) }
+function pos(obj,x,y,z){ obj.position.set(x,y,z); return obj }
+
+function addSpriteLabel(parent,x,y,z,text){
+  const cv=document.createElement('canvas'); cv.width=128; cv.height=36
+  const ctx=cv.getContext('2d'); ctx.clearRect(0,0,128,36)
+  ctx.fillStyle='#c8a060'; ctx.font='bold 22px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'
+  ctx.fillText(text,64,18)
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true}))
+  sp.position.set(x,y,z); sp.scale.set(.2,0.055,1); parent.add(sp)
+}
+
+// ═══════════════════════════════════════════════════════
+// ROOM
+// ═══════════════════════════════════════════════════════
+function buildRoom() {
+  const floorM=m(0x241608,0.82,0.03), wallM=m(0xe2d8c0,0.92,0), wallS=m(0xd8ccb4,0.95,0)
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(22,22),floorM)
+  floor.rotation.x=-Math.PI/2; floor.position.y=-0.5; floor.receiveShadow=true; scene.add(floor)
+  const plankM=m(0x1e1208,1.0,0)
+  for(let i=-6;i<=6;i++){const p=new THREE.Mesh(new THREE.BoxGeometry(22,0.004,0.018),plankM); p.position.set(0,-0.498,i*.75); scene.add(p)}
+  const bw=new THREE.Mesh(new THREE.PlaneGeometry(22,16),wallM); bw.position.set(0,7.5,-4.2); bw.receiveShadow=true; scene.add(bw)
+  const lw=new THREE.Mesh(new THREE.PlaneGeometry(22,16),wallS); lw.position.set(-9,7.5,3.8); lw.rotation.y=Math.PI/2; scene.add(lw)
+  const rw=new THREE.Mesh(new THREE.PlaneGeometry(22,16),wallS); rw.position.set(9,7.5,3.8); rw.rotation.y=-Math.PI/2; scene.add(rw)
+  const ceil=new THREE.Mesh(new THREE.PlaneGeometry(22,22),m(0xf0ebe0,1.0,0)); ceil.rotation.x=Math.PI/2; ceil.position.y=9; scene.add(ceil)
+  const bb=new THREE.Mesh(new THREE.BoxGeometry(22,0.18,0.06),m(0xede4cc,0.55,0)); bb.position.set(0,-0.41,-4.17); scene.add(bb)
+  const stand=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.10,1.65),m(0x4c2e10,0.72,0.04)); stand.position.set(0,-1.14,0); stand.castShadow=true; stand.receiveShadow=true; scene.add(stand)
+  ;[[-1.5,0.7],[1.5,0.7],[-1.5,-0.7],[1.5,-0.7]].forEach(([x,z])=>{const sl=new THREE.Mesh(new THREE.BoxGeometry(0.10,0.50,0.10),m(0x382008,0.85,0)); sl.position.set(x,-1.39,z); scene.add(sl)})
+  addPlant(-3.8,-0.5,-0.8); addPlant(3.6,-0.5,-0.6); addLamp(4.0,-0.5,-1.0)
+}
+
+function addPlant(x,y,z){
+  const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.10,0.24,12),m(0x8b4513,0.88,0)); pot.position.set(x,y+0.12,z); pot.castShadow=true; scene.add(pot)
+  const leafM=m(0x2a6c28,0.82,0)
+  for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2; const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.10,6,4),leafM); leaf.position.set(x+Math.cos(a)*.07,y+0.38+Math.random()*.1,z+Math.sin(a)*.07); leaf.scale.y=1.4; scene.add(leaf)}
+}
+
+function addLamp(x,y,z){
+  const polM=m(0x1a1208,0.6,0.5)
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.035,1.6,8),polM); pole.position.set(x,y+0.80,z); scene.add(pole)
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,0.06,12),polM); base.position.set(x,y+0.03,z); scene.add(base)
+  const shade=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.28,12,1,true),new THREE.MeshStandardMaterial({color:0xd4a840,roughness:0.7,side:THREE.DoubleSide})); shade.position.set(x,y+1.64,z); shade.rotation.x=Math.PI; scene.add(shade)
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.04,8,8),new THREE.MeshStandardMaterial({color:0xffeeaa,emissive:new THREE.Color(0xffddaa),emissiveIntensity:2})); bulb.position.set(x,y+1.55,z); scene.add(bulb)
+  const llt=new THREE.PointLight(0xffcc66,0.8,5); llt.position.set(x,y+1.5,z); scene.add(llt)
+}
+
+// ═══════════════════════════════════════════════════════
+// TV MODEL
+// ═══════════════════════════════════════════════════════
+function buildTV(){
+  const tvGroup=new THREE.Group(); scene.add(tvGroup)
+  const cab=mk(box(2.7,2.1,1.5),m(0x9b6b3c,0.75,0.04)); cab.castShadow=true; cab.receiveShadow=true; tvGroup.add(cab)
+  tvGroup.add(pos(mk(box(2.72,2.12,0.07),m(0x4a2a0e,0.85,0.02)),0,0,0.785))
+  tvGroup.add(pos(mk(box(2.72,0.06,1.52),m(0x7a4820,0.55,0.14)),0,1.08,0))
+  tvGroup.add(pos(mk(box(1.88,1.58,0.15),m(0x1c1008,0.65,0.06)),-0.25,0.24,0.822))
+  tvGroup.add(pos(mk(box(1.70,1.40,0.07),m(0x120a02,0.55,0.10)),-0.25,0.24,0.887))
+  const smat=new THREE.MeshStandardMaterial({color:0x0d180d,roughness:0.08,metalness:0,emissive:new THREE.Color(0x0a140a),emissiveIntensity:0.6})
+  screenMesh=new THREE.Mesh(new THREE.PlaneGeometry(1.60,1.20),smat); screenMesh.position.set(-0.25,0.24,0.924); tvGroup.add(screenMesh)
+  const gsheen=new THREE.Mesh(new THREE.PlaneGeometry(1.60,1.20),new THREE.MeshStandardMaterial({color:0xeeffee,transparent:true,opacity:0.025,roughness:0})); gsheen.position.set(-0.25,0.24,0.925); tvGroup.add(gsheen)
+  ;[[-0.25-0.88,0.24+0.74],[-0.25+0.88,0.24+0.74],[-0.25-0.88,0.24-0.74],[-0.25+0.88,0.24-0.74]].forEach(([x,y])=>{const b=mk(cyl(0.05,0.05,0.14,8),m(0x2a1a08,0.6,0.2)); b.rotation.x=Math.PI/2; b.position.set(x,y,0.825); tvGroup.add(b)})
+  tvGroup.add(pos(mk(box(0.74,1.52,0.065),m(0x4a2a0e,0.85,0.02)),1.01,0.14,0.823))
+  tvGroup.add(pos(mk(box(0.60,1.38,0.04),m(0x352010,0.95,0)),1.01,0.14,0.855))
+  tuner1KnobGroup=makeKnob(tvGroup,1.01,0.66,0.88,'tuner1')
+  tuner2KnobGroup=makeKnob(tvGroup,1.01,-0.06,0.88,'tuner2')
+  addSpriteLabel(tvGroup,1.01,0.43,0.89,'CH·A')
+  addSpriteLabel(tvGroup,1.01,-0.29,0.89,'CH·B')
+  buttonMesh=mk(cyl(0.065,0.078,0.078,18),new THREE.MeshStandardMaterial({color:0xcc1600,roughness:0.38,metalness:0.40,emissive:new THREE.Color(0x550000),emissiveIntensity:0.5}))
+  buttonMesh.rotation.x=Math.PI/2; buttonMesh.position.set(1.01,-0.60,0.920); buttonMesh.userData.type='button'; tvGroup.add(buttonMesh)
+  tvGroup.add(pos(new THREE.Mesh(new THREE.TorusGeometry(0.088,0.014,8,18),m(0xb8a070,0.32,0.78)),1.01,-0.60,0.888))
+  const led=new THREE.Mesh(new THREE.SphereGeometry(0.018,8,8),new THREE.MeshStandardMaterial({color:0x00ff44,emissive:new THREE.Color(0x00ff44),emissiveIntensity:1.2})); led.position.set(0.85,-0.60,0.892); tvGroup.add(led)
+  addSpriteLabel(tvGroup,1.01,-0.76,0.89,'PWR')
+  buildGrille(tvGroup,-0.25,-0.74,0.82)
+  ;[[-1.375,0],[1.375,0]].forEach(([x])=>tvGroup.add(pos(mk(box(0.055,2.16,0.068),m(0x7a4820,0.55,0.14)),x,0,0.822)))
+  ;[1.082,-1.082].forEach(y=>tvGroup.add(pos(mk(box(2.76,0.055,0.068),m(0x7a4820,0.55,0.14)),0,y,0.822)))
+  ;[[-0.95,0.40],[0.95,0.40],[-0.95,-0.40],[0.95,-0.40]].forEach(([x,z])=>{const leg=mk(box(0.115,0.62,0.115),m(0x4a2a0e,0.85,0.02)); leg.position.set(x,-1.36,z); leg.castShadow=true; tvGroup.add(leg); tvGroup.add(pos(mk(cyl(0.068,0.082,0.055,10),m(0xb8a070,0.32,0.78)),x,-1.69,z))})
+  tvGroup.add(pos(mk(cyl(0.062,0.072,0.115,10),m(0x120a02,0.55,0.10)),0.48,1.115,0.05))
+  const aM=m(0xc8b870,0.16,0.88), aGeo=new THREE.CylinderGeometry(0.007,0.013,1.55,6)
+  const a1=mk(aGeo,aM); a1.position.set(0.20,1.92,0.05); a1.rotation.z=0.40; tvGroup.add(a1)
+  const a2=mk(aGeo,aM); a2.position.set(0.76,1.92,0.05); a2.rotation.z=-0.40; tvGroup.add(a2)
+  tvGroup.position.set(0,0.55,0)
+  allInteractables=[]
+  tuner1KnobGroup.traverse(o=>{if(o.isMesh){o.userData.type='tuner1'; allInteractables.push(o)}})
+  tuner2KnobGroup.traverse(o=>{if(o.isMesh){o.userData.type='tuner2'; allInteractables.push(o)}})
+  allInteractables.push(buttonMesh)
+  return tvGroup
+}
+
+function makeKnob(parent,x,y,z,type){
+  const group=new THREE.Group(); group.position.set(x,y,z); parent.add(group)
+  const mMet=m(0xb8a070,0.32,0.78), mChr=m(0xd4c898,0.16,0.94)
+  group.add(new THREE.Mesh(new THREE.TorusGeometry(0.158,0.024,8,28),mMet))
+  const knobGroup=new THREE.Group(); group.add(knobGroup)
+  const body=mk(cyl(0.118,0.140,0.22,24),mChr); body.rotation.x=Math.PI/2; body.position.z=0.11; knobGroup.add(body)
+  const face=new THREE.Mesh(new THREE.CircleGeometry(0.118,24),new THREE.MeshStandardMaterial({color:0xc0aa78,roughness:0.28,metalness:0.85})); face.position.z=0.225; knobGroup.add(face)
+  const ind=mk(box(0.016,0.082,0.007),new THREE.MeshStandardMaterial({color:0xff5500,emissive:new THREE.Color(0xff3300),emissiveIntensity:0.6})); ind.position.set(0,0.055,0.228); knobGroup.add(ind)
+  for(let i=0;i<4;i++){const g=new THREE.Mesh(new THREE.TorusGeometry(0.140,0.007,6,22),mMet); g.rotation.x=Math.PI/2; g.position.set(0,0,0.04+i*.055); knobGroup.add(g)}
+  group.userData.knobGroup=knobGroup; group.userData.type=type
+  return group
+}
+
+function buildGrille(parent,cx,cy,cz){
+  const g=new THREE.Group(); g.position.set(cx,cy,cz); parent.add(g)
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.08,0.48,0.058),m(0x3a1e08,0.88,0)))
+  const cloth=new THREE.Mesh(new THREE.PlaneGeometry(1.02,0.42),m(0x180c02,1,0)); cloth.position.z=0.032; g.add(cloth)
+  const hM=m(0x050200,0.9,0)
+  for(let col=-4;col<=4;col++) for(let row=-1;row<=1;row++){const h=mk(cyl(0.017,0.017,0.065,8),hM); h.rotation.x=Math.PI/2; h.position.set(col*.098,row*.115,.028); g.add(h)}
+}
+
+// ═══════════════════════════════════════════════════════
+// SCREEN MANAGER
+// ═══════════════════════════════════════════════════════
+function showStatic(){
+  if(staticInterval){clearInterval(staticInterval);staticInterval=null}
+  if(currentTex){currentTex.dispose();currentTex=null}
+  const W=512,H=384, cv=document.createElement('canvas'); cv.width=W; cv.height=H
+  const ctx=cv.getContext('2d')
+  function draw(){
+    const img=ctx.createImageData(W,H),d=img.data
+    for(let i=0;i<d.length;i+=4){const v=(Math.random()*100+8)|0; d[i]=(v*.50)|0; d[i+1]=(v*1.00)|0; d[i+2]=(v*.42)|0; d[i+3]=255}
+    ctx.putImageData(img,0,0)
+    const barY=(Date.now()/18)%H, gr=ctx.createLinearGradient(0,barY-6,0,barY+6)
+    gr.addColorStop(0,'rgba(160,255,120,0)'); gr.addColorStop(.5,'rgba(160,255,120,.28)'); gr.addColorStop(1,'rgba(160,255,120,0)')
+    ctx.fillStyle=gr; ctx.fillRect(0,barY-6,W,12)
+    ctx.fillStyle='rgba(160,255,120,.82)'; ctx.font=`bold ${W*.075|0}px monospace`; ctx.textAlign='center'; ctx.fillText('NO SIGNAL',W/2,H/2-12)
+    ctx.font=`${W*.038|0}px monospace`; ctx.fillStyle='rgba(120,200,90,.5)'; ctx.fillText('UPLOAD A PRESENTATION TO BEGIN',W/2,H/2+18)
+    for(let y=0;y<H;y+=3){ctx.fillStyle='rgba(0,0,0,.13)'; ctx.fillRect(0,y,W,1)}
+  }
+  draw()
+  const tex=new THREE.CanvasTexture(cv); tex.colorSpace=THREE.SRGBColorSpace
+  currentTex=tex
+  screenMesh.material.map=tex; screenMesh.material.emissiveMap=tex
+  screenMesh.material.emissive.set(0x0c1c0c); screenMesh.material.emissiveIntensity=0.55
+  screenMesh.material.color.set(0xffffff); screenMesh.material.needsUpdate=true
+  staticInterval=setInterval(()=>{draw();tex.needsUpdate=true},55)
+}
+
+function showSlideTexture(dataUrl){
+  // Internal: load texture onto TV screen
+  if(staticInterval){clearInterval(staticInterval);staticInterval=null}
+  if(currentTex){currentTex.dispose();currentTex=null}
+  new THREE.TextureLoader().load(dataUrl, tex=>{
+    currentTex=tex; tex.colorSpace=THREE.SRGBColorSpace
+    screenMesh.material.map=tex; screenMesh.material.emissiveMap=tex
+    screenMesh.material.emissive.set(0x1a3320); screenMesh.material.emissiveIntensity=0.20
+    screenMesh.material.color.set(0xffffff); screenMesh.material.needsUpdate=true
+  })
+}
+
+function showSlide(dataUrl){
+  // Public: updates TV screen + samples ambient color
+  showSlideTexture(dataUrl)
+  // Sample color for ambient glow (async, safe)
+  try {
+    const img=new Image(); img.crossOrigin='anonymous'
+    img.onload=()=>{
+      try {
+        const sc=document.createElement('canvas'); sc.width=sc.height=8
+        const sx=sc.getContext('2d'); sx.drawImage(img,0,0,8,8)
+        const px=sx.getImageData(0,0,8,8).data
+        let r=0,g=0,b=0,n=0
+        for(let i=0;i<px.length;i+=4){r+=px[i];g+=px[i+1];b+=px[i+2];n++}
+        ambientTarget={r:r/n|0,g:g/n|0,b:b/n|0}
+      } catch(e){}
+    }
+    img.src=dataUrl
+  } catch(e){}
+  // Also update fullscreen display if active
+  if(fsActive) updateFsDisplay()
+}
+
+// ═══════════════════════════════════════════════════════
+// GLITCH — draws onto the TV texture only
+// ═══════════════════════════════════════════════════════
+const glitchCv=document.createElement('canvas'); glitchCv.width=512; glitchCv.height=384
+const glitchCtx=glitchCv.getContext('2d')
+const glitchTex=new THREE.CanvasTexture(glitchCv)
+
+function runGlitch(targetFn){
+  if(glitchRAF){cancelAnimationFrame(glitchRAF);glitchRAF=null}
+  const W=glitchCv.width,H=glitchCv.height,start=performance.now(),dur=380
+  let swapped=false
+
+  function frame(t){
+    const p=Math.min(1,t/dur)
+    glitchCtx.clearRect(0,0,W,H)
+    // Phosphor noise base
+    const id=glitchCtx.createImageData(W,H),d=id.data
+    for(let i=0;i<d.length;i+=4){const v=(Math.random()*90+5)|0; d[i]=(v*.30)|0; d[i+1]=(v*.95)|0; d[i+2]=(v*.28)|0; d[i+3]=255}
+    glitchCtx.putImageData(id,0,0)
+    // Horizontal band scramble
+    const intensity=Math.max(0,1-p*2.4), bh=H/20
+    for(let i=0;i<20;i++){
+      const shift=(Math.random()-.5)*W*.45*intensity
+      glitchCtx.fillStyle=`rgba(80,255,100,${(Math.random()*.7+.15)*intensity})`
+      glitchCtx.fillRect(shift,i*bh,W,bh*(Math.random()*.8+.1))
+    }
+    // White flash
+    if(p<.15){glitchCtx.fillStyle=`rgba(255,255,255,${((.15-p)/.15)*.85})`; glitchCtx.fillRect(0,0,W,H)}
+    // Tear lines
+    if(p<.6){for(let k=0;k<Math.floor(Math.random()*5*intensity+1);k++){glitchCtx.fillStyle=`rgba(200,255,160,${Math.random()*.8*intensity})`; glitchCtx.fillRect(0,Math.random()*H,W,Math.random()*4+1)}}
+    // RGB ghosts
+    if(p<.5){for(let g=0;g<3;g++){const gy=Math.random()*H,gh=Math.random()*30+6; glitchCtx.fillStyle=`rgba(255,30,80,${Math.random()*.25*intensity})`; glitchCtx.fillRect(-8,gy,W+8,gh); glitchCtx.fillStyle=`rgba(30,255,200,${Math.random()*.20*intensity})`; glitchCtx.fillRect(8,gy+3,W+8,gh*.5)}}
+    // Scanlines
+    for(let y=0;y<H;y+=3){glitchCtx.fillStyle='rgba(0,0,0,0.18)'; glitchCtx.fillRect(0,y,W,1)}
+    // Push to screen
+    glitchTex.needsUpdate=true
+    screenMesh.material.map=glitchTex; screenMesh.material.emissiveMap=glitchTex
+    screenMesh.material.emissive.set(0x0a1a0a); screenMesh.material.emissiveIntensity=0.65
+    screenMesh.material.color.set(0xffffff); screenMesh.material.needsUpdate=true
+    // Swap slide at 40%
+    if(!swapped&&p>=.40){swapped=true; if(targetFn)targetFn()}
+    if(t<dur){
+      glitchRAF=requestAnimationFrame(()=>frame(performance.now()-start))
+    } else {
+      glitchRAF=null
+      if(!swapped&&targetFn)targetFn()
+      // Always restore after glitch
+      setTimeout(()=>{
+        if(currentTex){
+          screenMesh.material.map=currentTex; screenMesh.material.emissiveMap=currentTex
+          screenMesh.material.emissive.set(0x1a3320); screenMesh.material.emissiveIntensity=0.20
+          screenMesh.material.color.set(0xffffff); screenMesh.material.needsUpdate=true
+        } else showStatic()
+      },60)
+    }
+  }
+  frame(0)
+}
+
+// CSS glitch for fullscreen content area
+function runFsGlitch(targetFn){
+  const fsc=document.getElementById('fs-content')
+  fsc.classList.remove('glitching'); void fsc.offsetWidth; fsc.classList.add('glitching')
+  setTimeout(()=>{if(targetFn)targetFn()},150)
+  setTimeout(()=>fsc.classList.remove('glitching'),420)
+}
+
+// ═══════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════
+function getCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)()
+  if(audioCtx.state==='suspended')audioCtx.resume()
+  return audioCtx
+}
+function playClick(){
+  try{
+    const ctx=getCtx(),now=ctx.currentTime
+    const buf=ctx.createBuffer(1,ctx.sampleRate*.06,ctx.sampleRate),d=buf.getChannelData(0)
+    for(let i=0;i<d.length;i++){const t=i/ctx.sampleRate; d[i]=((Math.random()*2-1)*Math.exp(-t*80)+Math.sin(2*Math.PI*800*t)*Math.exp(-t*120)*.3)*.6}
+    const src=ctx.createBufferSource(); src.buffer=buf
+    const gain=ctx.createGain(); gain.gain.setValueAtTime(.7,now); gain.gain.exponentialRampToValueAtTime(.001,now+.06)
+    src.connect(gain); gain.connect(ctx.destination); src.start(now); src.stop(now+.1)
+  }catch(e){}
+}
+function playSlideAdvance(){
+  try{
+    const ctx=getCtx(),now=ctx.currentTime
+    const buf=ctx.createBuffer(1,ctx.sampleRate*.04,ctx.sampleRate),d=buf.getChannelData(0)
+    for(let i=0;i<d.length;i++){const t=i/ctx.sampleRate; d[i]=Math.sin(2*Math.PI*1200*t)*Math.exp(-t*200)*.5+(Math.random()*2-1)*Math.exp(-t*60)*.3}
+    const src=ctx.createBufferSource(); src.buffer=buf
+    const g=ctx.createGain(); g.gain.setValueAtTime(.6,now); g.gain.exponentialRampToValueAtTime(.001,now+.04)
+    src.connect(g); g.connect(ctx.destination); src.start(now)
+    const buf2=ctx.createBuffer(1,ctx.sampleRate*.08,ctx.sampleRate),d2=buf2.getChannelData(0)
+    for(let i=0;i<d2.length;i++){const t=i/ctx.sampleRate; d2[i]=(Math.random()*2-1)*Math.exp(-t*40)*.35}
+    const src2=ctx.createBufferSource(); src2.buffer=buf2
+    const g2=ctx.createGain(); g2.gain.setValueAtTime(.4,now+.01); g2.gain.exponentialRampToValueAtTime(.001,now+.09)
+    src2.connect(g2); g2.connect(ctx.destination); src2.start(now+.01)
+  }catch(e){}
+}
+function playPowerOn(){
+  try{
+    const ctx=getCtx(),now=ctx.currentTime
+    const osc=ctx.createOscillator(); osc.type='sawtooth'
+    osc.frequency.setValueAtTime(60,now); osc.frequency.exponentialRampToValueAtTime(280,now+.3)
+    const g=ctx.createGain(); g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(.35,now+.08); g.gain.linearRampToValueAtTime(0,now+.32)
+    osc.connect(g); g.connect(ctx.destination); osc.start(now); osc.stop(now+.35)
+    const buf=ctx.createBuffer(1,ctx.sampleRate*.15,ctx.sampleRate),d=buf.getChannelData(0)
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-(i/ctx.sampleRate)*20)*.3
+    const src=ctx.createBufferSource(); src.buffer=buf
+    const g2=ctx.createGain(); g2.gain.setValueAtTime(.5,now)
+    src.connect(g2); g2.connect(ctx.destination); src.start(now)
+  }catch(e){}
+}
+function playChannelSwitch(){
+  try{
+    const ctx=getCtx(),now=ctx.currentTime
+    const osc=ctx.createOscillator(); osc.type='square'
+    osc.frequency.setValueAtTime(180,now); osc.frequency.exponentialRampToValueAtTime(60,now+.05)
+    const g=ctx.createGain(); g.gain.setValueAtTime(.5,now); g.gain.exponentialRampToValueAtTime(.001,now+.07)
+    osc.connect(g); g.connect(ctx.destination); osc.start(now); osc.stop(now+.08)
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════
+// RAYCASTER
+// ═══════════════════════════════════════════════════════
+const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2()
+const tooltip=document.getElementById('tooltip')
+const LABELS={tuner1:'[ CLICK ] ADVANCE CH·A',tuner2:'[ CLICK ] ADVANCE CH·B',button:'[ CLICK ] FULLSCREEN'}
+
+function getType(obj){let cur=obj; for(let i=0;i<8;i++){if(!cur)return null; if(cur.userData?.type)return cur.userData.type; cur=cur.parent} return null}
+
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect()
+  mouse.x=((e.clientX-r.left)/r.width)*2-1; mouse.y=-((e.clientY-r.top)/r.height)*2+1
+  raycaster.setFromCamera(mouse,camera)
+  const hits=raycaster.intersectObjects(allInteractables,false)
+  if(!hits.length)return
+  const type=getType(hits[0].object)
+  if(type==='tuner1')handleTuner1()
+  else if(type==='tuner2')handleTuner2()
+  else if(type==='button')handleButton()
+})
+
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect()
+  mouse.x=((e.clientX-r.left)/r.width)*2-1; mouse.y=-((e.clientY-r.top)/r.height)*2+1
+  raycaster.setFromCamera(mouse,camera)
+  const hits=raycaster.intersectObjects(allInteractables,false)
+  const type=hits.length?getType(hits[0].object):null
+  if(type&&LABELS[type]){
+    canvas.style.cursor='pointer'; tooltip.style.display='block'
+    tooltip.style.left=(e.clientX-tooltip.offsetWidth/2)+'px'; tooltip.style.top=(e.clientY-50)+'px'
+    tooltip.textContent=LABELS[type]
+  } else {canvas.style.cursor='default'; tooltip.style.display='none'}
+})
+
+// ═══════════════════════════════════════════════════════
+// TUNER ACTIONS
+// ═══════════════════════════════════════════════════════
+function handleTuner1(){
+  playSlideAdvance()
+  gsap.to(tuner1KnobGroup.userData.knobGroup.rotation,{z:`+=${Math.PI*.333}`,duration:.28,ease:'back.out(1.7)'})
+  if(state.activeChannel==='B')playChannelSwitch()
+  state.activeChannel='A'
+  runGlitch(()=>{
+    if(state.presentationA.length){state.slideIndexA=(state.slideIndexA+1)%state.presentationA.length; showSlide(state.presentationA[state.slideIndexA])}
+    else showStatic()
+    updateUI()
+  })
+}
+function handleTuner2(){
+  playSlideAdvance()
+  gsap.to(tuner2KnobGroup.userData.knobGroup.rotation,{z:`-=${Math.PI*.333}`,duration:.28,ease:'back.out(1.7)'})
+  if(state.activeChannel==='A')playChannelSwitch()
+  state.activeChannel='B'
+  runGlitch(()=>{
+    if(state.presentationB.length){state.slideIndexB=(state.slideIndexB+1)%state.presentationB.length; showSlide(state.presentationB[state.slideIndexB])}
+    else showStatic()
+    updateUI()
+  })
+}
+function handleButton(){
+  playPowerOn()
+  gsap.to(buttonMesh.position,{z:'-=0.05',duration:.07,ease:'power3.in',yoyo:true,repeat:1})
+  setTimeout(()=>openFullscreen(),120)
+}
+
+function goToSlide(channel,index){
+  if(channel==='A'){state.activeChannel='A'; state.slideIndexA=index; if(state.presentationA.length)showSlide(state.presentationA[index])}
+  else{state.activeChannel='B'; state.slideIndexB=index; if(state.presentationB.length)showSlide(state.presentationB[index])}
+  updateUI()
+}
+
+// ═══════════════════════════════════════════════════════
+// FULLSCREEN
+// ═══════════════════════════════════════════════════════
+const fsOverlay=document.getElementById('fs-overlay')
+const fsImg=document.getElementById('fs-img')
+const fsBtn=document.getElementById('fs-btn')
+const fsExitBtn=document.getElementById('fs-exit-btn')
+const fsKnobA=document.getElementById('fs-knob-a')
+const fsKnobB=document.getElementById('fs-knob-b')
+const fsTickA=document.getElementById('fs-tick-a')
+const fsTickB=document.getElementById('fs-tick-b')
+const fsSizeSlider=document.getElementById('fs-size-slider')
+const fsSizeVal=document.getElementById('fs-size-val')
+const fsSizeMinus=document.getElementById('fs-size-minus')
+const fsSizePlus=document.getElementById('fs-size-plus')
+
+function openFullscreen(){
+  playPowerOn()
+  fsActive=true
+  fsOverlay.classList.add('active')
+  document.getElementById('panel').style.display='none'
+  fsBtn.style.display='none'
+  applyFsScale(fsImgScale)
+  updateFsDisplay()
+}
+function closeFullscreen(){
+  fsActive=false
+  fsOverlay.classList.remove('active')
+  document.getElementById('panel').style.display=''
+  fsBtn.style.display=''
+}
+function applyFsScale(v){
+  v=Math.max(10,Math.min(100,Math.round(v)))
+  fsImgScale=v; fsSizeSlider.value=v; fsSizeVal.textContent=v+'%'
+  fsImg.style.maxWidth=v+'%'; fsImg.style.maxHeight=v+'%'
+}
+function updateFsDisplay(){
+  const ch=state.activeChannel,A=state.presentationA,B=state.presentationB,iA=state.slideIndexA,iB=state.slideIndexB
+  document.getElementById('fs-badgeA').style.color=ch==='A'?'#ff9030':'#4a3010'
+  document.getElementById('fs-badgeB').style.color=ch==='B'?'#ff9030':'#4a3010'
+  document.getElementById('fs-infoA').textContent=A.length?`${iA+1} / ${A.length}`:'—'
+  document.getElementById('fs-infoB').textContent=B.length?`${iB+1} / ${B.length}`:'—'
+  document.getElementById('fs-barA').style.width=A.length?((iA+1)/A.length*100)+'%':'0%'
+  document.getElementById('fs-barB').style.width=B.length?((iB+1)/B.length*100)+'%':'0%'
+  const current=ch==='A'?(A.length?A[iA]:null):(B.length?B[iB]:null)
+  if(current){fsImg.src=current; fsImg.style.display='block'; document.getElementById('fs-nosig').style.display='none'}
+  else{fsImg.style.display='none'; document.getElementById('fs-nosig').style.display='block'}
+}
+
+// Fullscreen knob advance (shared by click and keyboard)
+function advanceFsSlide(ch,dir){
+  playSlideAdvance()
+  if(ch==='A'){
+    fsTickRotA+=dir*60; fsTickA.style.transform=`translateX(-50%) rotate(${fsTickRotA}deg)`; fsTickA.style.transformOrigin='50% 250%'
+    state.activeChannel='A'
+    runFsGlitch(()=>{
+      const len=state.presentationA.length
+      if(len){state.slideIndexA=(state.slideIndexA+dir+len)%len; showSlide(state.presentationA[state.slideIndexA])} else showStatic()
+      updateUI(); updateFsDisplay()
+    })
+  } else {
+    fsTickRotB-=dir*60; fsTickB.style.transform=`translateX(-50%) rotate(${fsTickRotB}deg)`; fsTickB.style.transformOrigin='50% 250%'
+    state.activeChannel='B'
+    runFsGlitch(()=>{
+      const len=state.presentationB.length
+      if(len){state.slideIndexB=(state.slideIndexB+dir+len)%len; showSlide(state.presentationB[state.slideIndexB])} else showStatic()
+      updateUI(); updateFsDisplay()
+    })
+  }
+}
+
+fsBtn.addEventListener('click',openFullscreen)
+fsExitBtn.addEventListener('click',closeFullscreen)
+fsKnobA.addEventListener('click',()=>advanceFsSlide('A',1))
+fsKnobB.addEventListener('click',()=>advanceFsSlide('B',1))
+fsSizeSlider.addEventListener('input',()=>applyFsScale(parseInt(fsSizeSlider.value)))
+fsSizeMinus.addEventListener('click',()=>applyFsScale(fsImgScale-5))
+fsSizePlus.addEventListener('click',()=>applyFsScale(fsImgScale+5))
+
+// ═══════════════════════════════════════════════════════
+// AUTO-ADVANCE TIMER
+// ═══════════════════════════════════════════════════════
+function toggleTimer(){timerRunning?stopTimer():startTimer()}
+function startTimer(){
+  const inp=document.getElementById('timer-inp'), secs=parseInt(inp.value)
+  if(!secs||secs<1){inp.focus();return}
+  timerSecsLeft=secs; timerRunning=true
+  document.getElementById('timer-btn').textContent='■ STOP'
+  document.getElementById('timer-btn').classList.add('active')
+  updateTimerDisplay()
+  timerInterval=setInterval(()=>{
+    timerSecsLeft--; updateTimerDisplay()
+    if(timerSecsLeft<=0){
+      timerSecsLeft=parseInt(document.getElementById('timer-inp').value)||secs
+      const ch=state.activeChannel
+      if(ch==='A'&&state.presentationA.length){if(fsActive)advanceFsSlide('A',1); else goToSlide('A',(state.slideIndexA+1)%state.presentationA.length)}
+      else if(ch==='B'&&state.presentationB.length){if(fsActive)advanceFsSlide('B',1); else goToSlide('B',(state.slideIndexB+1)%state.presentationB.length)}
+    }
+  },1000)
+}
+function stopTimer(){
+  if(timerInterval)clearInterval(timerInterval); timerInterval=null; timerRunning=false
+  document.getElementById('timer-btn').textContent='▶ START'
+  document.getElementById('timer-btn').classList.remove('active')
+  document.getElementById('timer-cd').textContent=''
+}
+function updateTimerDisplay(){
+  const m=Math.floor(timerSecsLeft/60),s=timerSecsLeft%60
+  document.getElementById('timer-cd').textContent=m>0?`${m}:${String(s).padStart(2,'0')}`:`${timerSecsLeft}s`
+}
+document.getElementById('timer-btn').addEventListener('click',toggleTimer)
+
+// ═══════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return
+  const ch=state.activeChannel,lenA=state.presentationA.length,lenB=state.presentationB.length
+  // ? = shortcut HUD
+  if(e.key==='?'||e.key==='/'){e.preventDefault(); document.getElementById('shortcut-hud').classList.toggle('show'); return}
+  // Escape
+  if(e.key==='Escape'){
+    if(document.getElementById('shortcut-hud').classList.contains('show')){document.getElementById('shortcut-hud').classList.remove('show');return}
+    if(fsActive){closeFullscreen();return}
+  }
+  // F = toggle fullscreen
+  if(e.key.toLowerCase()==='f'){e.preventDefault(); fsActive?closeFullscreen():openFullscreen(); return}
+  // T = timer
+  if(e.key.toLowerCase()==='t'){e.preventDefault(); toggleTimer(); return}
+  // Space = next
+  if(e.key===' '){
+    e.preventDefault()
+    if(fsActive){if(ch==='A'&&lenA)advanceFsSlide('A',1); else if(ch==='B'&&lenB)advanceFsSlide('B',1)}
+    else{if(ch==='A'&&lenA)handleTuner1(); else if(ch==='B'&&lenB)handleTuner2()}
+    return
+  }
+  // Arrows
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'){
+    e.preventDefault()
+    if(fsActive){if(ch==='A'&&lenA)advanceFsSlide('A',1); else if(ch==='B'&&lenB)advanceFsSlide('B',1)}
+    else{if(ch==='A'&&lenA)goToSlide('A',(state.slideIndexA+1)%lenA); else if(ch==='B'&&lenB)goToSlide('B',(state.slideIndexB+1)%lenB)}
+  } else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){
+    e.preventDefault()
+    if(fsActive){if(ch==='A'&&lenA)advanceFsSlide('A',-1); else if(ch==='B'&&lenB)advanceFsSlide('B',-1)}
+    else{if(ch==='A'&&lenA)goToSlide('A',(state.slideIndexA-1+lenA)%lenA); else if(ch==='B'&&lenB)goToSlide('B',(state.slideIndexB-1+lenB)%lenB)}
+  } else if(e.key.toLowerCase()==='a'){state.activeChannel='A'; updateUI()}
+    else if(e.key.toLowerCase()==='b'){state.activeChannel='B'; updateUI()}
+})
+
+// ─── Shortcut HUD: click outside to close ───
+document.getElementById('shortcut-hud').addEventListener('click',e=>{
+  if(e.target===document.getElementById('shortcut-hud'))document.getElementById('shortcut-hud').classList.remove('show')
+})
+
+// ═══════════════════════════════════════════════════════
+// DRAGGABLE PANEL
+// ═══════════════════════════════════════════════════════
+;(function(){
+  const panel=document.getElementById('panel'),hdr=panel.querySelector('.panel-hdr')
+  let drag=false,ox=0,oy=0,init=false
+  hdr.addEventListener('mousedown',e=>{
+    if(e.target.closest('input,button,label'))return
+    if(!init){const r=panel.getBoundingClientRect(); panel.style.left=r.left+'px'; panel.style.top=r.top+'px'; panel.style.bottom='auto'; panel.style.transform='none'; init=true}
+    drag=true; ox=e.clientX-panel.offsetLeft; oy=e.clientY-panel.offsetTop; panel.classList.add('dragging'); e.preventDefault()
+  })
+  window.addEventListener('mousemove',e=>{
+    if(!drag)return
+    let nx=Math.max(0,Math.min(window.innerWidth-panel.offsetWidth,e.clientX-ox))
+    let ny=Math.max(0,Math.min(window.innerHeight-panel.offsetHeight,e.clientY-oy))
+    panel.style.left=nx+'px'; panel.style.top=ny+'px'
+  })
+  window.addEventListener('mouseup',()=>{if(drag){drag=false;panel.classList.remove('dragging')}})
+})()
+
+// ═══════════════════════════════════════════════════════
+// AMBIENT GLOW — lerp screen light toward slide color
+// ═══════════════════════════════════════════════════════
+setInterval(()=>{
+  glowR+=(ambientTarget.r-glowR)*.08
+  glowG+=(ambientTarget.g-glowG)*.08
+  glowB+=(ambientTarget.b-glowB)*.08
+  screenGlow.color.set((glowR<<16|glowG<<8|glowB)>>>0)
+},80)
+
+// ═══════════════════════════════════════════════════════
+// UI UPDATES
+// ═══════════════════════════════════════════════════════
+function updateUI(){
+  const ch=state.activeChannel
+  document.getElementById('chA').className='channel'+(ch==='A'?' active':'')
+  document.getElementById('chB').className='channel'+(ch==='B'?' active':'')
+  document.getElementById('badgeA').className='ch-badge'+(ch==='A'?' lit':'')
+  document.getElementById('badgeB').className='ch-badge'+(ch==='B'?' lit':'')
+  const A=state.presentationA,B=state.presentationB,iA=state.slideIndexA,iB=state.slideIndexB
+  document.getElementById('nosigA').style.display=A.length?'none':'flex'
+  document.getElementById('infoA').style.display=A.length?'block':'none'
+  if(A.length){document.getElementById('numA').textContent=iA+1; document.getElementById('totA').textContent=A.length; document.getElementById('barA').style.width=((iA+1)/A.length*100)+'%'}
+  document.getElementById('btxtA').textContent=A.length?`LOADED (${A.length} slides) — click to reload`:'LOAD SLIDES (PDF, PPTX, or image)'
+  document.getElementById('btnA').className='upload-btn'+(A.length?' loaded':'')
+  document.getElementById('nosigB').style.display=B.length?'none':'flex'
+  document.getElementById('infoB').style.display=B.length?'block':'none'
+  if(B.length){document.getElementById('numB').textContent=iB+1; document.getElementById('totB').textContent=B.length; document.getElementById('barB').style.width=((iB+1)/B.length*100)+'%'}
+  document.getElementById('btxtB').textContent=B.length?`LOADED (${B.length} slides) — click to reload`:'LOAD SLIDES (PDF, PPTX, or image)'
+  document.getElementById('btnLB').className='upload-btn'+(B.length?' loaded':'')
+  if(fsActive)updateFsDisplay()
+}
+
+// ═══════════════════════════════════════════════════════
+// FILE INPUTS
+// ═══════════════════════════════════════════════════════
+async function handleUpload(file,channel){
+  document.getElementById('loading').classList.add('show')
+  try{
+    const slides=await parseSlides(file)
+    if(channel==='A'){state.presentationA=slides; state.slideIndexA=0; state.activeChannel='A'; if(slides.length)showSlide(slides[0])}
+    else{state.presentationB=slides; state.slideIndexB=0; state.activeChannel='B'; if(slides.length)showSlide(slides[0])}
+    updateUI()
+  }catch(e){console.error(e); alert('Could not load file: '+e.message)}
+  finally{document.getElementById('loading').classList.remove('show')}
+}
+document.getElementById('fileA').addEventListener('change',e=>{if(e.target.files[0])handleUpload(e.target.files[0],'A')})
+document.getElementById('fileB').addEventListener('change',e=>{if(e.target.files[0])handleUpload(e.target.files[0],'B')})
+
+// ═══════════════════════════════════════════════════════
+// CAMERA ORBIT
+// ═══════════════════════════════════════════════════════
+const BASE_Z=6, BASE_Y=1.7
+canvas.addEventListener('mousedown',e=>{if(!introComplete)return; isDragging=true; dragX=e.clientX; dragY=e.clientY})
+window.addEventListener('mouseup',()=>isDragging=false)
+window.addEventListener('mousemove',e=>{
+  if(!isDragging||!introComplete)return
+  yaw=Math.max(-.45,Math.min(.45,yaw+(e.clientX-dragX)*.003))
+  pitch=Math.max(-.20,Math.min(.25,pitch+(e.clientY-dragY)*.002))
+  dragX=e.clientX; dragY=e.clientY
+})
+
+// ═══════════════════════════════════════════════════════
+// SLIDE PARSING
+// ═══════════════════════════════════════════════════════
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){res();return} const s=Object.assign(document.createElement('script'),{src,onload:res,onerror:rej}); document.head.appendChild(s)})}
+function waitFor(fn,ms=4000){return new Promise((res,rej)=>{const t=Date.now(); const check=()=>{if(fn())res(); else if(Date.now()-t>ms)rej(new Error('timeout')); else setTimeout(check,50)}; check()})}
+
+async function parseSlides(file){
+  const ext=file.name.split('.').pop().toLowerCase()
+  if(ext==='pdf')return parsePDF(file)
+  if(ext==='pptx'||ext==='ppt')return parsePPTX(file)
+  return[await toDataURL(file)]
+}
+async function parsePDF(file){
+  const CDN='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/'
+  if(!window.pdfjsLib){await loadScript(CDN+'pdf.min.js'); await waitFor(()=>window.pdfjsLib)}
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=CDN+'pdf.worker.min.js'
+  const pdf=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise
+  const slides=[]
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p), vp=page.getViewport({scale:1.8})
+    const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height
+    await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise
+    slides.push(cv.toDataURL('image/jpeg',.92))
+  }
+  return slides.length?slides:[errorSlide('Empty PDF')]
+}
+async function parsePPTX(file){
+  const CDN='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+  if(!window.JSZip){await loadScript(CDN); await waitFor(()=>window.JSZip)}
+  const zip=await window.JSZip.loadAsync(await file.arrayBuffer())
+
+  // ── Helper: blob url from zip entry ──
+  async function blobUrl(entry){ return URL.createObjectURL(await entry.async('blob')) }
+
+  // ── Helper: load image from url ──
+  function loadImg(url){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=url }) }
+
+  // ── Helper: parse XML string ──
+  function parseXml(str){ return new DOMParser().parseFromString(str,'text/xml') }
+
+  // ── Helper: get text content from XML nodes ──
+  function getText(xml){ return [...xml.querySelectorAll('t')].map(n=>n.textContent).join(' ').trim() }
+
+  // ── Helper: parse pptx color (hex) ──
+  function pptxColor(str,fallback='#000000'){
+    if(!str)return fallback
+    str=str.replace(/^#/,'')
+    if(/^[0-9a-f]{6}$/i.test(str))return '#'+str
+    return fallback
+  }
+
+  // ── Get slide order from presentation.xml.rels ──
+  const presRels=zip.file('ppt/_rels/presentation.xml.rels')
+  const slideFiles=[]
+  if(presRels){
+    const xml=await presRels.async('text')
+    const re=/Relationship[^>]*Type="[^"]*\/slide"[^>]*Target="([^"]+)"/g
+    let mm; while((mm=re.exec(xml))!==null){
+      // Target may be relative like 'slides/slide1.xml'
+      const t=mm[1].replace(/^\.\.\//,'')
+      slideFiles.push('ppt/'+t)
+    }
+  }
+
+  // ── Get slide size from presentation.xml ──
+  let slideW=9144000, slideH=6858000 // EMUs default (10"x7.5" at 914400 EMU/inch)
+  const presXmlEntry=zip.file('ppt/presentation.xml')
+  if(presXmlEntry){
+    const presXml=await presXmlEntry.async('text')
+    const szMatch=presXml.match(/p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/)
+    if(szMatch){slideW=parseInt(szMatch[1]); slideH=parseInt(szMatch[2])}
+  }
+
+  // Canvas render dimensions
+  const CW=1280, CH=Math.round(CW*(slideH/slideW))
+
+  // ── Build media map (path → blob url) ──
+  const mediaMap={}
+  zip.forEach((path,entry)=>{
+    if(path.startsWith('ppt/media/')&&!entry.dir) mediaMap[path]=entry
+  })
+
+  // ── Render one slide ──
+  async function renderSlide(slideXmlStr, slideRelsXmlStr){
+    const cv=document.createElement('canvas'); cv.width=CW; cv.height=CH
+    const ctx=cv.getContext('2d')
+    const xml=parseXml(slideXmlStr)
+
+    // ── Background color ──
+    let bgColor='#f0f0f0'
+    // Try slide bg fill
+    const bgFill=xml.querySelector('bg bgPr solidFill srgbClr')
+    if(bgFill) bgColor='#'+bgFill.getAttribute('val')
+    else {
+      // Try theme bg (just use white for now)
+      const bg=xml.querySelector('bg bgRef')
+      if(!bg) bgColor='#ffffff'
+    }
+    ctx.fillStyle=bgColor; ctx.fillRect(0,0,CW,CH)
+
+    // ── Parse slide rels to map rId → media path ──
+    const rIdMap={}
+    if(slideRelsXmlStr){
+      const rxml=parseXml(slideRelsXmlStr)
+      rxml.querySelectorAll('Relationship').forEach(r=>{
+        const id=r.getAttribute('Id'), type=r.getAttribute('Type')||'', target=r.getAttribute('Target')||''
+        if(type.includes('image')||/\.(png|jpe?g|gif|webp|bmp|svg)/i.test(target)) rIdMap[id]=target
+      })
+    }
+
+    // EMU → canvas pixels
+    const emuX=v=>Math.round((parseInt(v)||0)/slideW*CW)
+    const emuY=v=>Math.round((parseInt(v)||0)/slideH*CH)
+    const emuW=v=>Math.round((parseInt(v)||0)/slideW*CW)
+    const emuH=v=>Math.round((parseInt(v)||0)/slideH*CH)
+
+    // ── Collect all shape elements in draw order ──
+    const spTree=xml.querySelector('spTree')
+    if(!spTree){ return cv.toDataURL('image/jpeg',.92) }
+
+    for(const child of spTree.children){
+      const tag=child.tagName.replace(/^[^:]+:/,'')
+
+      // ── Picture (image) ──
+      if(tag==='pic'||tag==='graphicFrame'||child.querySelector('blipFill')){
+        try{
+          const blip=child.querySelector('blip')||child.querySelector('blipFill blip')
+          if(blip){
+            const rId=blip.getAttribute('r:embed')||blip.getAttribute('r:link')||''
+            let mediaPath=rIdMap[rId]
+            if(mediaPath){
+              // Resolve relative path
+              mediaPath=mediaPath.replace(/^\.\.\//,'ppt/')
+              if(!mediaPath.startsWith('ppt/'))mediaPath='ppt/media/'+mediaPath.split('/').pop()
+              const entry=zip.file(mediaPath)||zip.file('ppt/media/'+mediaPath.split('/').pop())
+              if(entry){
+                const url=await blobUrl(entry)
+                const img=await loadImg(url)
+                if(img){
+                  // Get position/size from xfrm
+                  const xfrm=child.querySelector('xfrm')||child.querySelector('spPr xfrm')
+                  if(xfrm){
+                    const off=xfrm.querySelector('off'), ext=xfrm.querySelector('ext')
+                    if(off&&ext){
+                      const x=emuX(off.getAttribute('x')), y=emuY(off.getAttribute('y'))
+                      const w=emuW(ext.getAttribute('cx')), h=emuH(ext.getAttribute('cy'))
+                      ctx.drawImage(img,x,y,w,h)
+                    } else ctx.drawImage(img,0,0,CW,CH)
+                  } else ctx.drawImage(img,0,0,CW,CH)
+                }
+                URL.revokeObjectURL(url)
+              }
+            }
+          }
+        }catch(e){}
+        continue
+      }
+
+      // ── Shape (text + fill) ──
+      if(tag==='sp'){
+        try{
+          const xfrm=child.querySelector('xfrm')||child.querySelector('spPr xfrm')
+          let x=0,y=0,w=CW,h=CH
+          if(xfrm){
+            const off=xfrm.querySelector('off'), ext=xfrm.querySelector('ext')
+            if(off&&ext){x=emuX(off.getAttribute('x'));y=emuY(off.getAttribute('y'));w=emuW(ext.getAttribute('cx'));h=emuH(ext.getAttribute('cy'))}
+          }
+
+          // Shape fill
+          const solidFill=child.querySelector('spPr solidFill srgbClr')||child.querySelector('spPr solidFill srgbClr')
+          if(solidFill){ ctx.fillStyle='#'+solidFill.getAttribute('val'); ctx.fillRect(x,y,w,h) }
+
+          // Text
+          const txBody=child.querySelector('txBody')
+          if(txBody){
+            // Get all paragraphs
+            const paras=[...txBody.querySelectorAll('p')]
+            const lineH=Math.max(14, h/Math.max(paras.length,1))
+            let ty=y+lineH*.7
+            for(const para of paras){
+              const runs=[...para.querySelectorAll('r')]
+              if(!runs.length){ty+=lineH; continue}
+              let tx=x+8
+              for(const run of runs){
+                const rpr=run.querySelector('rPr')
+                const tEl=run.querySelector('t')
+                if(!tEl)continue
+                const text=tEl.textContent
+                // Font size in points (EMU hundredths of a point)
+                let fs=18
+                if(rpr){const szAttr=rpr.getAttribute('sz'); if(szAttr)fs=Math.min(Math.max(parseInt(szAttr)/100,8),96)}
+                // Scale font to canvas
+                fs=Math.round(fs*(CH/720))
+                // Color
+                let color='#222222'
+                const rClr=rpr&&(rpr.querySelector('solidFill srgbClr')||rpr.querySelector('solidFill schemeClr'))
+                if(rClr&&rClr.tagName.includes('srgbClr'))color='#'+rClr.getAttribute('val')
+                // Bold/italic
+                const bold=rpr&&rpr.getAttribute('b')==='1'
+                const italic=rpr&&rpr.getAttribute('i')==='1'
+                ctx.font=`${italic?'italic ':''}${bold?'bold ':''}${fs}px sans-serif`
+                ctx.fillStyle=color; ctx.fillText(text,tx,ty,w-16)
+                tx+=ctx.measureText(text).width
+              }
+              ty+=lineH
+            }
+          }
+        }catch(e){}
+      }
+    }
+    return cv.toDataURL('image/jpeg',.92)
+  }
+
+  // ── Process each slide ──
+  const slides=[]
+  for(const sf of slideFiles){
+    const slideEntry=zip.file(sf)
+    if(!slideEntry){ slides.push(errorSlide('Missing: '+sf)); continue }
+    try{
+      const slideXml=await slideEntry.async('text')
+      // Get rels file: ppt/slides/_rels/slide1.xml.rels
+      const baseName=sf.split('/').pop()
+      const relsPath=sf.replace('/slides/','/slides/_rels/')+'.rels'
+      const relsEntry2=zip.file(relsPath)
+      const relsXml=relsEntry2?await relsEntry2.async('text'):''
+      const dataUrl=await renderSlide(slideXml,relsXml)
+      slides.push(dataUrl)
+    }catch(e){
+      console.warn('Slide render error',sf,e)
+      slides.push(errorSlide('Render error: '+sf.split('/').pop()))
+    }
+  }
+
+  // Fallback: if we got nothing at all, grab raw media images
+  if(!slides.length){
+    const media=[]
+    zip.forEach((p,e)=>{if(p.startsWith('ppt/media/')&&!e.dir&&/\.(png|jpe?g|gif|webp)$/i.test(p))media.push(e)})
+    media.sort((a,b)=>a.name.localeCompare(b.name))
+    for(const e of media)slides.push(await blobUrl(e))
+  }
+  return slides.length?slides:[errorSlide('No slides found — try exporting as PDF')]
+}
+function toDataURL(file){return new Promise((res,rej)=>{const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file)})}
+function errorSlide(msg){
+  const cv=document.createElement('canvas'); cv.width=800; cv.height=600; const ctx=cv.getContext('2d')
+  ctx.fillStyle='#180400'; ctx.fillRect(0,0,800,600); ctx.fillStyle='#ff6040'; ctx.font='bold 36px monospace'; ctx.textAlign='center'; ctx.fillText('ERROR',400,260)
+  ctx.fillStyle='#aa4020'; ctx.font='18px monospace'; ctx.fillText(msg,400,310); return cv.toDataURL()
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD & RUN
+// ═══════════════════════════════════════════════════════
+buildRoom()
+const tvGroup=buildTV()
+showStatic()
+updateUI()
+
+setTimeout(()=>document.getElementById('intro').classList.add('hidden'),3200)
+setTimeout(()=>{
+  gsap.to(camera.position,{x:0,y:BASE_Y,z:BASE_Z,duration:2.5,ease:'power3.inOut',
+    onUpdate(){camera.lookAt(lookAt)},
+    onComplete(){camera.lookAt(lookAt); introComplete=true}
+  })
+},2600)
+
+const clock=new THREE.Clock()
+;(function animate(){
+  requestAnimationFrame(animate)
+  const t=clock.getElapsedTime()
+  tvGroup.rotation.y=Math.sin(t*.15)*.005
+  screenGlow.intensity=.48+Math.sin(t*2.3)*.10
+  if(introComplete){
+    const tx=Math.sin(yaw)*BASE_Z,ty=BASE_Y-pitch*BASE_Z,tz=Math.cos(yaw)*BASE_Z
+    camera.position.x+=(tx-camera.position.x)*.08
+    camera.position.y+=(ty-camera.position.y)*.08
+    camera.position.z+=(tz-camera.position.z)*.08
+    camera.lookAt(lookAt)
+  }
+  renderer.render(scene,camera)
+})()
+</script>
+</body>
+</html>
